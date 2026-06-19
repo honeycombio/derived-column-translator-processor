@@ -10,7 +10,8 @@ Two ways to use it (both share one translation core):
 - **`dc2ottl` CLI** — fetches a dataset's derived columns and emits a `transform` processor config
   block plus a report of anything it couldn't translate. You review and paste the result, and
   regenerate periodically as derived columns change. Use this if you want to run the stock
-  `transform` processor with no extra component.
+  `transform` processor with no extra component. See [its README](cmd/dc2ottl/README.md) for flags,
+  output, and an example.
 - **`derivedcolumnprocessor`** — a collector processor that fetches derived columns at startup,
   refreshes on an interval, and applies them inline. It recompiles only when the rules actually
   change. Use this if you don't want to regenerate and redeploy config on every derived-column edit.
