@@ -14,6 +14,7 @@ Two ways to use it (both share one translation core):
 - **`derivedcolumnprocessor`** — a collector processor that fetches derived columns at startup,
   refreshes on an interval, and applies them inline. It recompiles only when the rules actually
   change. Use this if you don't want to regenerate and redeploy config on every derived-column edit.
+  See [its README](derivedcolumnprocessor/README.md) for the full config reference and an example.
 
 ## Authentication
 
