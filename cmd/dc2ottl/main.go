@@ -23,7 +23,7 @@ func main() {
 
 func run() error {
 	var (
-		apiKey     = flag.String("api-key", os.Getenv("HONEYCOMB_API_KEY"), "Honeycomb API key (or set HONEYCOMB_API_KEY)")
+		apiKey     = flag.String("api-key", os.Getenv("HONEYCOMB_API_KEY"), "Honeycomb Configuration Key with 'Manage Queries and Columns' permission (or set HONEYCOMB_API_KEY)")
 		apiURL     = flag.String("api-url", honeycomb.DefaultAPIURL, "Honeycomb API base URL")
 		dataset    = flag.String("dataset", honeycomb.AllDatasets, "dataset slug, or __all__ for environment-wide derived columns")
 		name       = flag.String("name", "derived_columns", "transform processor name suffix")

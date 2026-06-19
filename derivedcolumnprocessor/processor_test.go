@@ -76,6 +76,31 @@ func TestProcessorTranslatesAndHotSwaps(t *testing.T) {
 	assert.False(t, ok, "is_slow should no longer be applied after hot-swap")
 }
 
+func TestRefreshSkipsRecompileWhenUnchanged(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`[{"id":"1","alias":"is_slow","expression":"$duration_ms > 1000"}]`))
+	}))
+	defer srv.Close()
+
+	cfg := createDefaultConfig().(*Config)
+	cfg.APIKey = "test-key"
+	cfg.APIURL = srv.URL
+	cfg.RefreshInterval = time.Hour
+
+	p := newProcessor(processortest.NewNopSettings(componentType), cfg, consumertest.NewNop())
+	ctx := context.Background()
+	require.NoError(t, p.start(ctx, componenttest.NewNopHost()))
+	defer func() { require.NoError(t, p.shutdown(ctx)) }()
+
+	first := p.seq.Load()
+	require.NotNil(t, first)
+
+	// Same derived columns on the next refresh: the compiled sequence must not
+	// be swapped (identical pointer).
+	require.NoError(t, p.refresh(ctx))
+	assert.Same(t, first, p.seq.Load(), "unchanged rules should not recompile")
+}
+
 func TestConfigValidate(t *testing.T) {
 	cfg := createDefaultConfig().(*Config)
 	require.Error(t, cfg.Validate(), "missing api_key should fail")

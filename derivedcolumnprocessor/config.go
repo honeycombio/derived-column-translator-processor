@@ -13,7 +13,11 @@ import (
 
 // Config configures the derived column processor.
 type Config struct {
-	// APIKey is the Honeycomb API key used to read derived columns.
+	// APIKey is the Honeycomb Configuration Key used to read derived columns. It
+	// must have the "Manage Queries and Columns" permission. This is a v1
+	// Configuration Key (sent in the X-Honeycomb-Team header), not an ingest key
+	// and not a v2 Management Key: derived columns are only exposed on the v1
+	// Configuration API.
 	APIKey configopaque.String `mapstructure:"api_key"`
 
 	// APIURL is the Honeycomb API base URL (defaults to the US instance).

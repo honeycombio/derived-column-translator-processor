@@ -1,6 +1,11 @@
 // Package honeycomb is a minimal client for the Honeycomb Configuration API,
 // scoped to the operations this project needs: listing the derived columns
 // defined on a dataset or environment.
+//
+// Authentication uses a Honeycomb v1 Configuration Key (sent in the
+// X-Honeycomb-Team header) with the "Manage Queries and Columns" permission.
+// Derived columns are only available on the v1 Configuration API, so an ingest
+// key or a v2 Management Key will not work.
 package honeycomb
 
 import (

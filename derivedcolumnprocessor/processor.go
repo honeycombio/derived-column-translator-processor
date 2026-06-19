@@ -2,6 +2,8 @@ package derivedcolumnprocessor // import "github.com/honeycombio/derived-column-
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -34,6 +36,11 @@ type derivedColumnProcessor struct {
 	// seq holds the currently compiled statement sequence and is swapped
 	// atomically by the refresh loop.
 	seq atomic.Pointer[ottl.StatementSequence[*ottlspan.TransformContext]]
+
+	// refreshMu serializes refresh and guards lastHash. lastHash is the hash of
+	// the most recently compiled statement set; an unchanged hash skips recompile.
+	refreshMu sync.Mutex
+	lastHash  string
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -99,8 +106,12 @@ func (p *derivedColumnProcessor) refreshLoop(ctx context.Context) {
 }
 
 // refresh fetches the derived columns, translates them, and atomically swaps in
-// the newly compiled statement sequence.
+// the newly compiled statement sequence. If the generated statements are
+// identical to the last successful refresh, it skips recompilation and the swap.
 func (p *derivedColumnProcessor) refresh(ctx context.Context) error {
+	p.refreshMu.Lock()
+	defer p.refreshMu.Unlock()
+
 	cols, err := p.client.ListDerivedColumns(ctx, p.cfg.Dataset)
 	if err != nil {
 		return err
@@ -112,6 +123,15 @@ func (p *derivedColumnProcessor) refresh(ctx context.Context) error {
 	}
 	out := emit.Generate(inputs, p.resolver)
 
+	hash := hashStatements(out.Statements)
+	if hash == p.lastHash && p.seq.Load() != nil {
+		p.logger.Debug("derived columns unchanged; keeping compiled statements",
+			zap.Int("derived_columns", len(cols)),
+			zap.Int("statements", len(out.Statements)),
+		)
+		return nil
+	}
+
 	statements, err := p.parser.ParseStatements(out.Statements)
 	if err != nil {
 		return fmt.Errorf("parsing OTTL statements: %w", err)
@@ -122,6 +142,7 @@ func (p *derivedColumnProcessor) refresh(ctx context.Context) error {
 		ottlspan.WithStatementSequenceErrorMode(p.cfg.ErrorMode),
 	)
 	p.seq.Store(&seq)
+	p.lastHash = hash
 
 	var skipped int
 	for _, r := range out.Reports {
@@ -135,6 +156,17 @@ func (p *derivedColumnProcessor) refresh(ctx context.Context) error {
 		zap.Int("skipped", skipped),
 	)
 	return nil
+}
+
+// hashStatements returns a stable hash of the ordered statement list, used to
+// detect whether the translated rules have changed since the last refresh.
+func hashStatements(stmts []string) string {
+	h := sha256.New()
+	for _, s := range stmts {
+		_, _ = h.Write([]byte(s))
+		_, _ = h.Write([]byte{0})
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func (p *derivedColumnProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
