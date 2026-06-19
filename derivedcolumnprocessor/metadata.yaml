@@ -1,0 +1,9 @@
+type: derivedcolumn
+
+status:
+  class: processor
+  stability:
+    development: [traces]
+  distributions: [honeycomb]
+  codeowners:
+    active: [honeycombio]
